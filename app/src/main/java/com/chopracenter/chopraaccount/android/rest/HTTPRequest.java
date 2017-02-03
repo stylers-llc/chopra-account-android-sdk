@@ -42,12 +42,12 @@ public class HTTPRequest {
         headers.put(key, value);
     }
 
-    public void setContentType(String _contentType) {
-        contentType = _contentType;
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
     }
 
-    public void setPostJSON(JSONObject _postJSON) {
-        postJSON = _postJSON;
+    public void setPostJSON(JSONObject postJSON) {
+        this.postJSON = postJSON;
     }
 
     public void setBasicAuthentication(final String username, final String password) {
@@ -98,13 +98,22 @@ public class HTTPRequest {
                 char[] bytes = postData.toCharArray();
                 urlConnection.setRequestProperty("Content-Type", contentType);
 
+                OutputStreamWriter post = null;
                 try {
-                    OutputStreamWriter post = new OutputStreamWriter(urlConnection.getOutputStream());
+                    post = new OutputStreamWriter(urlConnection.getOutputStream());
                     post.write(bytes);
                     post.flush();
                 } catch (Exception e) {
                     e.printStackTrace();
                     response.onResponseFailed(e.getMessage());
+                } finally {
+                    if (post != null) {
+                        try {
+                            post.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
             }
             InputStream in;

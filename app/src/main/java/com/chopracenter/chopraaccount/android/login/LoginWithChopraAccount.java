@@ -31,11 +31,10 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class LoginWithChopraAccount {
 
-    private Context context;
     private String apiKey;
     private String clientKey;
     private String clientSecret;
-    private String platform;
+    private final static String PLATFORM = "mobile";
     private String namespace;
     private boolean autoclose;
 
@@ -45,47 +44,45 @@ public class LoginWithChopraAccount {
 
     public static final String TAG = "ChopraAccountSDKWebView";
 
-    public LoginWithChopraAccount(Context context, String baseUrl, String apiUrl, String apiKey, String platform, String namespace, String clientKey, String clientSecret, boolean autoclose) {
-        this.context = context;
+    public LoginWithChopraAccount(String baseUrl, String apiUrl, String apiKey, String namespace, String clientKey, String clientSecret, boolean autoclose) {
         apiManager = new APIManager();
         apiManager.setBaseAuthUrl(baseUrl);
         apiManager.setBaseAPiUrl(apiUrl);
         this.apiKey = apiKey;
-        this.platform = platform;
         this.namespace = namespace;
         this.clientKey = clientKey;
         this.clientSecret = clientSecret;
         this.autoclose = autoclose;
     }
 
-    public void showEmailLoginView(ChopraLoginListener _Chopra_loginListener) {
+    public void showEmailLoginView(Context context, ChopraLoginListener chopraLoginListener) {
         String urlString = apiManager.getBaseAuthUrl()
                 + "/tokenauth"
                 + "?client_key=" + clientKey
-                + "&platform_type=" + platform
+                + "&platform_type=" + PLATFORM
                 + "&namespace=" + namespace;
 
-        chopraLoginListener = _Chopra_loginListener;
+        this.chopraLoginListener = chopraLoginListener;
         showPopup(context, urlString);
     }
 
     //socialType: 0 - google+, 1 - facebook
-    public void showSocialLoginView(String _socialId, String _socialToken, int _socialType, ChopraLoginListener _ChopraLoginListener) {
+    public void showSocialLoginView(Context context, String socialId, String socialToken, int socialType, ChopraLoginListener chopraLoginListener) {
         String urlString = apiManager.getBaseAuthUrl()
                 + "/social/tokenauth"
                 + "?client_key=" + clientKey
-                + "&platform_type=" + platform
+                + "&platform_type=" + PLATFORM
                 + "&namespace=" + namespace
-                + "&social_id=" + _socialId
-                + "&social_token=" + encryptSocialToken(_socialToken)
-                + "&social_type=" + ((_socialType == 1) ? "facebook" : "google");
+                + "&social_id=" + socialId
+                + "&social_token=" + encryptSocialToken(socialToken)
+                + "&social_type=" + ((socialType == 1) ? "facebook" : "google");
 
-        chopraLoginListener = _ChopraLoginListener;
+        this.chopraLoginListener = chopraLoginListener;
         showPopup(context, urlString);
     }
 
-    public void getChopraAccount(String ssoToken, GetChopraAccountListener _getChopraAccountListener) {
-        getChopraAccountListener = _getChopraAccountListener;
+    public void getChopraAccount(String ssoToken, GetChopraAccountListener getChopraAccountListener) {
+        this.getChopraAccountListener = getChopraAccountListener;
         new GetAboutTaskCommand().start(ssoToken);
     }
 
@@ -96,8 +93,7 @@ public class LoginWithChopraAccount {
     //PopUpWebView
     //
     private void showPopup(final Context context, String urlString) {
-        View layout = ((LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE))
-                .inflate(R.layout.dialog_login, null);
+        View layout = LayoutInflater.from(context).inflate(R.layout.dialog_login, null);
 
         final Dialog rootView = new Dialog(context, android.R.style.Theme_NoTitleBar);
         rootView.setContentView(layout);

@@ -27,14 +27,14 @@ public class ChopraTask extends AsyncTask<HTTPRequest, Void, Void> {
         try {
             params[0].request(new ResponseListener() {
                 @Override
-                public void onResponseReceived(int _responseCode, String _result) {
-                    responseCode = _responseCode;
-                    result = _result;
+                public void onResponseReceived(int responseCode, String result) {
+                    ChopraTask.this.responseCode = responseCode;
+                    ChopraTask.this.result = result;
                 }
 
                 @Override
-                public void onResponseFailed(String _error) {
-                    error = _error;
+                public void onResponseFailed(String error) {
+                    ChopraTask.this.error = error;
                 }
 
             });
