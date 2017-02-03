@@ -31,18 +31,22 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class LoginWithChopraAccount {
 
+    public static final String TAG = "ChopraAccountSDKWebView";
+
+    public static final int SOCIAL_TYPE_GOOGLE = 0;
+    public static final int SOCIAL_TYPE_FACEBOOK = 1;
+
+    private final static String PLATFORM = "mobile";
+
     private String apiKey;
     private String clientKey;
     private String clientSecret;
-    private final static String PLATFORM = "mobile";
     private String namespace;
     private boolean autoclose;
 
     private ChopraLoginListener chopraLoginListener;
     private GetChopraAccountListener getChopraAccountListener;
     private APIManager apiManager;
-
-    public static final String TAG = "ChopraAccountSDKWebView";
 
     public LoginWithChopraAccount(String baseUrl, String apiUrl, String apiKey, String namespace, String clientKey, String clientSecret, boolean autoclose) {
         apiManager = new APIManager();
@@ -53,6 +57,16 @@ public class LoginWithChopraAccount {
         this.clientKey = clientKey;
         this.clientSecret = clientSecret;
         this.autoclose = autoclose;
+    }
+
+    public void showRegistrationView(Context context) {
+        String urlString = apiManager.getBaseAuthUrl()
+                + "/tokenauth/registration"
+                + "?client_key=" + clientKey
+                + "&platform_type=" + PLATFORM
+                + "&namespace=" + namespace;
+
+        showPopup(context, urlString);
     }
 
     public void showEmailLoginView(Context context, ChopraLoginListener chopraLoginListener) {
@@ -113,7 +127,10 @@ public class LoginWithChopraAccount {
                 if (url.contains("sso_code")) {
 
                     String[] ssoResults = getSSOKeyFromUrl(url);
-                    chopraLoginListener.loginFinished(ssoResults[0], ssoResults[1], null);
+
+                    if (chopraLoginListener != null) {
+                        chopraLoginListener.loginFinished(ssoResults[0], ssoResults[1], null);
+                    }
 
                     if (autoclose && rootView.isShowing()) {
                         rootView.dismiss();
