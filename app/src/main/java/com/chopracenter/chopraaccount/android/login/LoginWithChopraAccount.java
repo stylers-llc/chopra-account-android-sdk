@@ -2,6 +2,7 @@ package com.chopracenter.chopraaccount.android.login;
 
 import android.app.Dialog;
 import android.content.Context;
+import android.net.Uri;
 import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -20,7 +21,6 @@ import com.scottyab.aescrypt.AESCrypt;
 
 import org.json.JSONObject;
 
-import java.net.URLDecoder;
 import java.security.GeneralSecurityException;
 import java.util.LinkedHashMap;
 
@@ -124,7 +124,8 @@ public class LoginWithChopraAccount {
         webView.setWebViewClient(new WebViewClient() {
 
             public void onPageFinished(WebView view, String url) {
-                if (url.contains("sso_code")) {
+                String ssoCode = Uri.parse(url).getQueryParameter("sso_code");
+                if (ssoCode != null) {
 
                     String[] ssoResults = getSSOKeyFromUrl(url);
 
@@ -154,30 +155,21 @@ public class LoginWithChopraAccount {
 
     }
 
-    private String[] getSSOKeyFromUrl(String url) {
+    private String[] getSSOKeyFromUrl(String ssoKey) {
         String[] resultArray = new String[2]; //0:u_id ; 1:api_token
-        String ssoKey = url.substring(url.indexOf("sso_code") + 9);
         Log.d(TAG, "SSO_KEY: " + ssoKey);
         try {
-            ssoKey = URLDecoder.decode(ssoKey, "UTF-8");
-            byte[] data = Base64.decode(ssoKey, Base64.DEFAULT);
-
-            JSONObject jsonObject = new JSONObject(new String(data));
-            String SecretKey = clientSecret;
-            SecretKeySpec keyspec = new SecretKeySpec(SecretKey.getBytes(), "AES");
+            JSONObject jsonObject = new JSONObject(new String(Base64.decode(ssoKey, Base64.DEFAULT)));
 
             try {
                 byte[] messageAfterDecrypt = AESCrypt.decrypt(
-                        keyspec,
+                        new SecretKeySpec(clientSecret.getBytes(), "AES"),
                         Base64.decode(jsonObject.get("iv").toString(), Base64.DEFAULT),
                         Base64.decode(jsonObject.get("value").toString(), Base64.DEFAULT));
 
-                String str = new String(messageAfterDecrypt);
-                SerializedPhpParser tempParser = new SerializedPhpParser(str);
-                Object tempResult = tempParser.parse();
+                String tempResult = new SerializedPhpParser(new String(messageAfterDecrypt)).parse().toString();
 
-                SerializedPhpParser serializedPhpParser = new SerializedPhpParser(tempResult.toString());
-                LinkedHashMap<String, Object> resultHashMap = (LinkedHashMap<String, Object>) serializedPhpParser.parse();
+                LinkedHashMap<String, Object> resultHashMap = (LinkedHashMap<String, Object>) new SerializedPhpParser(tempResult).parse();
                 resultArray[0] = String.valueOf(resultHashMap.get("api_token"));
                 resultArray[1] = String.valueOf(resultHashMap.get("u_id"));
 
