@@ -126,8 +126,7 @@ public class LoginWithChopraAccount {
             public void onPageFinished(WebView view, String url) {
                 String ssoCode = Uri.parse(url).getQueryParameter("sso_code");
                 if (ssoCode != null) {
-
-                    String[] ssoResults = getSSOKeyFromUrl(url);
+                    String[] ssoResults = getSSOKeyFromUrl(ssoCode);
 
                     if (chopraLoginListener != null) {
                         chopraLoginListener.loginFinished(ssoResults[0], ssoResults[1], null);
