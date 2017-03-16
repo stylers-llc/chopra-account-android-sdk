@@ -130,6 +130,7 @@ public class LoginWithChopraAccount {
 
                     if (chopraLoginListener != null) {
                         chopraLoginListener.loginFinished(ssoResults[0], ssoResults[1], null);
+                        chopraLoginListener = null;
                     }
 
                     if (autoclose && rootView.isShowing()) {
