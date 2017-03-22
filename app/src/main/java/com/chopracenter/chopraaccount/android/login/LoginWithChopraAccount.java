@@ -1,8 +1,15 @@
 package com.chopracenter.chopraaccount.android.login;
 
+import android.accounts.Account;
+import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.net.Uri;
+import android.os.AsyncTask;
+import android.support.annotation.NonNull;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
 import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -17,10 +24,28 @@ import com.chopracenter.chopraaccount.android.rest.ChopraTask;
 import com.chopracenter.chopraaccount.android.rest.ResponseListener;
 import com.chopracenter.chopraaccount.android.utils.PhpSerializer;
 import com.chopracenter.chopraaccount.android.utils.SerializedPhpParser;
+import com.facebook.CallbackManager;
+import com.facebook.FacebookCallback;
+import com.facebook.FacebookException;
+import com.facebook.login.LoginManager;
+import com.facebook.login.LoginResult;
+import com.google.android.gms.auth.GoogleAuthException;
+import com.google.android.gms.auth.GoogleAuthUtil;
+import com.google.android.gms.auth.GooglePlayServicesAvailabilityException;
+import com.google.android.gms.auth.UserRecoverableAuthException;
+import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.auth.api.signin.GoogleSignInResult;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.Scopes;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.scottyab.aescrypt.AESCrypt;
 
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.LinkedHashMap;
 
@@ -29,12 +54,15 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-public class LoginWithChopraAccount {
+public class LoginWithChopraAccount implements GoogleApiClient.OnConnectionFailedListener {
 
-    public static final String TAG = "ChopraAccountSDKWebView";
+    private static final String TAG = "ChopraAccountSDKWebView";
 
-    public static final int SOCIAL_TYPE_GOOGLE = 0;
-    public static final int SOCIAL_TYPE_FACEBOOK = 1;
+    private static final int RC_GOOGLE_SIGN_IN = 0;
+    private static final int RC_GOOGLE_AUTHORIZATION = 1;
+
+    private static final String SOCIAL_TYPE_GOOGLE = "google";
+    private static final String SOCIAL_TYPE_FACEBOOK = "facebook";
 
     private final static String PLATFORM = "mobile";
 
@@ -47,6 +75,12 @@ public class LoginWithChopraAccount {
     private ChopraLoginListener chopraLoginListener;
     private GetChopraAccountListener getChopraAccountListener;
     private APIManager apiManager;
+
+    // Facebook
+    private CallbackManager callbackManager;
+
+    //Google
+    private GoogleApiClient googleApiClient;
 
     public LoginWithChopraAccount(String baseUrl, String apiUrl, String apiKey, String namespace, String clientKey, String clientSecret, boolean autoclose) {
         apiManager = new APIManager();
@@ -80,8 +114,159 @@ public class LoginWithChopraAccount {
         showPopup(context, urlString);
     }
 
-    //socialType: 0 - google+, 1 - facebook
-    public void showSocialLoginView(Context context, String socialId, String socialToken, int socialType, ChopraLoginListener chopraLoginListener) {
+    public void onActivityResult(Fragment fragment, int requestCode, int resultCode, Intent data) {
+        if (callbackManager != null) {
+            if (callbackManager.onActivityResult(requestCode, resultCode, data))
+                return;
+        }
+
+        if (requestCode == RC_GOOGLE_SIGN_IN) {
+            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
+            if (result.isSuccess() && result.getSignInAccount() != null) {
+                new GoogleLoginTask(result.getSignInAccount(), fragment).execute();
+            } else {
+                chopraLoginListener.loginFailed(result.getStatus().getStatusMessage());
+            }
+        } else if (requestCode == RC_GOOGLE_AUTHORIZATION) {
+            fragment.startActivityForResult(Auth.GoogleSignInApi.getSignInIntent(googleApiClient), RC_GOOGLE_SIGN_IN);
+        }
+    }
+
+    private class GoogleLoginTask extends AsyncTask<Void, Void, String> {
+
+        GoogleSignInAccount account;
+        Fragment fragment;
+        String error;
+
+        GoogleLoginTask(GoogleSignInAccount account, Fragment fragment) {
+            super();
+            this.account = account;
+            this.fragment = fragment;
+        }
+
+        @Override
+        protected String doInBackground(Void... params) {
+            String token = null;
+            error = "Unknown error";
+            try {
+                token = GoogleAuthUtil.getToken(
+                        fragment.getContext(),
+                        new Account(account.getEmail(), GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE),
+                        "oauth2:" + Scopes.PROFILE);
+            } catch (IOException e) {
+                error = e.getMessage();
+            } catch (GooglePlayServicesAvailabilityException playEx) {
+                GooglePlayServicesUtil.showErrorDialogFragment(
+                        playEx.getConnectionStatusCode(),
+                        fragment.getActivity(),
+                        fragment,
+                        RC_GOOGLE_AUTHORIZATION,
+                        null);
+            } catch (UserRecoverableAuthException e) {
+                fragment.startActivityForResult(e.getIntent(), RC_GOOGLE_AUTHORIZATION);
+            } catch (GoogleAuthException e) {
+                error = e.getMessage();
+            }
+            return token;
+        }
+
+        @Override
+        protected void onPostExecute(String token) {
+            if (token == null) {
+                chopraLoginListener.loginFailed(error);
+            } else {
+                showSocialLoginView(
+                        fragment.getContext(),
+                        account.getId(),        //google userId
+                        token,                  //google accessToken
+                        LoginWithChopraAccount.SOCIAL_TYPE_GOOGLE,
+                        chopraLoginListener);
+            }
+        }
+    }
+
+    private void initializeFacebook(final Context context) {
+        if (callbackManager != null)
+            return;
+
+        callbackManager = CallbackManager.Factory.create();
+        LoginManager.getInstance().registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
+            @Override
+            public void onSuccess(LoginResult loginResult) {
+                showSocialLoginView(
+                        context,
+                        loginResult.getAccessToken().getUserId(),   //facebook userId
+                        loginResult.getAccessToken().getToken(),    //facebook accessToken
+                        LoginWithChopraAccount.SOCIAL_TYPE_FACEBOOK,
+                        chopraLoginListener);
+            }
+
+            @Override
+            public void onCancel() {
+                // login canceled, nothing to do
+            }
+
+            @Override
+            public void onError(FacebookException error) {
+                chopraLoginListener.loginFailed(error.getMessage());
+            }
+        });
+    }
+
+    public void showFacebookLoginView(final Activity activity, final ChopraLoginListener chopraLoginListener) {
+        initializeFacebook(activity);
+        this.chopraLoginListener = chopraLoginListener;
+        LoginManager.getInstance().logInWithReadPermissions(activity, null);
+    }
+
+    public void showFacebookLoginView(final android.app.Fragment fragment, final ChopraLoginListener chopraLoginListener) {
+        initializeFacebook(fragment.getActivity());
+        this.chopraLoginListener = chopraLoginListener;
+        LoginManager.getInstance().logInWithReadPermissions(fragment, null);
+    }
+
+    public void showFacebookLoginView(final Fragment fragment, final ChopraLoginListener chopraLoginListener) {
+        initializeFacebook(fragment.getActivity());
+        this.chopraLoginListener = chopraLoginListener;
+        LoginManager.getInstance().logInWithReadPermissions(fragment, null);
+    }
+
+    private void initializeGoogle(final FragmentActivity activity, final String token) {
+        if (googleApiClient != null)
+            return;
+
+        // Configure sign-in to request the user's ID, email address, and basic profile.
+        // ID and basic profile are included in DEFAULT_SIGN_IN.
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(token)
+                .requestEmail()
+                .build();
+
+        // Build a GoogleApiClient with access to the Google Sign-In API and the options specified by gso.
+        googleApiClient = new GoogleApiClient.Builder(activity)
+                .enableAutoManage(activity, this)
+                .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
+                .build();
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+        chopraLoginListener.loginFailed(connectionResult.getErrorMessage());
+    }
+
+    public void showGoogleLoginView(String token, final FragmentActivity activity, ChopraLoginListener chopraLoginListener) {
+        initializeGoogle(activity, token);
+        this.chopraLoginListener = chopraLoginListener;
+        activity.startActivityForResult(Auth.GoogleSignInApi.getSignInIntent(googleApiClient), RC_GOOGLE_SIGN_IN);
+    }
+
+    public void showGoogleLoginView(String token, final Fragment fragment, ChopraLoginListener chopraLoginListener) {
+        initializeGoogle(fragment.getActivity(), token);
+        this.chopraLoginListener = chopraLoginListener;
+        fragment.startActivityForResult(Auth.GoogleSignInApi.getSignInIntent(googleApiClient), RC_GOOGLE_SIGN_IN);
+    }
+
+    private void showSocialLoginView(Context context, String socialId, String socialToken, String socialType, ChopraLoginListener chopraLoginListener) {
         String urlString = apiManager.getBaseAuthUrl()
                 + "/social/tokenauth"
                 + "?client_key=" + clientKey
@@ -89,7 +274,7 @@ public class LoginWithChopraAccount {
                 + "&namespace=" + namespace
                 + "&social_id=" + socialId
                 + "&social_token=" + encryptSocialToken(socialToken)
-                + "&social_type=" + ((socialType == 1) ? "facebook" : "google");
+                + "&social_type=" + socialType;
 
         this.chopraLoginListener = chopraLoginListener;
         showPopup(context, urlString);
@@ -102,10 +287,12 @@ public class LoginWithChopraAccount {
 
     public void logout(String ssoToken) {
         new LogoutTaskCommand().start(ssoToken);
+        LoginManager.getInstance().logOut();
+        if (googleApiClient != null)
+            Auth.GoogleSignInApi.signOut(googleApiClient);
     }
 
     //PopUpWebView
-    //
     private void showPopup(final Context context, String urlString) {
         View layout = LayoutInflater.from(context).inflate(R.layout.dialog_login, null);
 
@@ -125,11 +312,12 @@ public class LoginWithChopraAccount {
 
             public void onPageFinished(WebView view, String url) {
                 String ssoCode = Uri.parse(url).getQueryParameter("sso_code");
+
                 if (ssoCode != null) {
                     String[] ssoResults = getSSOKeyFromUrl(ssoCode);
 
                     if (chopraLoginListener != null) {
-                        chopraLoginListener.loginFinished(ssoResults[0], ssoResults[1], null);
+                        chopraLoginListener.loginFinished(ssoResults[0], ssoResults[1]);
                         chopraLoginListener = null;
                     }
 
