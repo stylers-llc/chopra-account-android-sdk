@@ -38,7 +38,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.Scopes;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.scottyab.aescrypt.AESCrypt;
@@ -114,6 +114,18 @@ public class LoginWithChopraAccount implements GoogleApiClient.OnConnectionFaile
         showPopup(context, urlString);
     }
 
+    /**
+     * onActivityResult forwarded from a Fragment
+     *
+     * @param fragment    The caller Fragment - used for routing further calls through it
+     * @param requestCode The integer request code originally supplied to
+     *                    startActivityForResult(), allowing you to identify who this
+     *                    result came from.
+     * @param resultCode  The integer result code returned by the child activity
+     *                    through its setResult().
+     * @param data        An Intent, which can return result data to the caller
+     *                    (various data can be attached to Intent "extras").
+     */
     public void onActivityResult(Fragment fragment, int requestCode, int resultCode, Intent data) {
         if (callbackManager != null) {
             if (callbackManager.onActivityResult(requestCode, resultCode, data))
@@ -132,15 +144,54 @@ public class LoginWithChopraAccount implements GoogleApiClient.OnConnectionFaile
         }
     }
 
+
+    /**
+     * onActivityResult forwarded from an Activity
+     *
+     * @param activity    The caller Activity - used for routing further calls through it
+     * @param requestCode The integer request code originally supplied to
+     *                    startActivityForResult(), allowing you to identify who this
+     *                    result came from.
+     * @param resultCode  The integer result code returned by the child activity
+     *                    through its setResult().
+     * @param data        An Intent, which can return result data to the caller
+     *                    (various data can be attached to Intent "extras").
+     */
+    public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
+        if (callbackManager != null) {
+            if (callbackManager.onActivityResult(requestCode, resultCode, data))
+                return;
+        }
+
+        if (requestCode == RC_GOOGLE_SIGN_IN) {
+            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
+            if (result.isSuccess() && result.getSignInAccount() != null) {
+                new GoogleLoginTask(result.getSignInAccount(), activity).execute();
+            } else {
+                chopraLoginListener.loginFailed(result.getStatus().getStatusMessage());
+            }
+        } else if (requestCode == RC_GOOGLE_AUTHORIZATION) {
+            activity.startActivityForResult(Auth.GoogleSignInApi.getSignInIntent(googleApiClient), RC_GOOGLE_SIGN_IN);
+        }
+    }
+
     private class GoogleLoginTask extends AsyncTask<Void, Void, String> {
 
         GoogleSignInAccount account;
+        Activity activity;
         Fragment fragment;
         String error;
+
+        GoogleLoginTask(GoogleSignInAccount account, Activity activity) {
+            super();
+            this.account = account;
+            this.activity = activity;
+        }
 
         GoogleLoginTask(GoogleSignInAccount account, Fragment fragment) {
             super();
             this.account = account;
+            this.activity = fragment.getActivity();
             this.fragment = fragment;
         }
 
@@ -150,20 +201,22 @@ public class LoginWithChopraAccount implements GoogleApiClient.OnConnectionFaile
             error = "Unknown error";
             try {
                 token = GoogleAuthUtil.getToken(
-                        fragment.getContext(),
+                        activity,
                         new Account(account.getEmail(), GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE),
                         "oauth2:" + Scopes.PROFILE);
             } catch (IOException e) {
                 error = e.getMessage();
             } catch (GooglePlayServicesAvailabilityException playEx) {
-                GooglePlayServicesUtil.showErrorDialogFragment(
+                GoogleApiAvailability.getInstance().showErrorDialogFragment(
+                        activity,
                         playEx.getConnectionStatusCode(),
-                        fragment.getActivity(),
-                        fragment,
-                        RC_GOOGLE_AUTHORIZATION,
-                        null);
+                        RC_GOOGLE_AUTHORIZATION);
             } catch (UserRecoverableAuthException e) {
-                fragment.startActivityForResult(e.getIntent(), RC_GOOGLE_AUTHORIZATION);
+                if (fragment == null) {
+                    activity.startActivityForResult(e.getIntent(), RC_GOOGLE_AUTHORIZATION);
+                } else {
+                    fragment.startActivityForResult(e.getIntent(), RC_GOOGLE_AUTHORIZATION);
+                }
             } catch (GoogleAuthException e) {
                 error = e.getMessage();
             }
