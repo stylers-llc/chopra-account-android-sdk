@@ -229,7 +229,7 @@ public class LoginWithChopraAccount implements GoogleApiClient.OnConnectionFaile
                 chopraLoginListener.loginFailed(error);
             } else {
                 showSocialLoginView(
-                        fragment.getContext(),
+                        activity,
                         account.getId(),        //google userId
                         token,                  //google accessToken
                         LoginWithChopraAccount.SOCIAL_TYPE_GOOGLE,
