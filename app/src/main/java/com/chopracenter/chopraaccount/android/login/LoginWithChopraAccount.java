@@ -341,7 +341,7 @@ public class LoginWithChopraAccount implements GoogleApiClient.OnConnectionFaile
     public void logout(String ssoToken) {
         new LogoutTaskCommand().start(ssoToken);
         LoginManager.getInstance().logOut();
-        if (googleApiClient != null)
+        if (googleApiClient != null && googleApiClient.isConnected())
             Auth.GoogleSignInApi.signOut(googleApiClient);
     }
 
