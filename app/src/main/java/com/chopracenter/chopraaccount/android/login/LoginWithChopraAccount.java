@@ -356,7 +356,7 @@ public class LoginWithChopraAccount implements GoogleApiClient.OnConnectionFaile
         final View progressBar = layout.findViewById(R.id.progressBar);
         final View closeButton = layout.findViewById(R.id.closeButton);
 
-        final WebView webView = (WebView) layout.findViewById(R.id.webView);
+        final WebView webView = layout.findViewById(R.id.webView);
         webView.getSettings().setJavaScriptEnabled(true);
         webView.requestFocus(View.FOCUS_DOWN);
         webView.getSettings().setDomStorageEnabled(true);
