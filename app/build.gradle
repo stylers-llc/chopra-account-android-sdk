@@ -18,11 +18,11 @@ android {
 }
 
 dependencies {
-    api 'com.scottyab:aescrypt:0.0.1'
+    compile 'com.scottyab:aescrypt:0.0.1'
 
     // Facebook SDK for Facebook login
-    api 'com.facebook.android:facebook-android-sdk:4.+'
+    compile 'com.facebook.android:facebook-android-sdk:4.+'
 
     // Google Play Services for Google login
-    api 'com.google.android.gms:play-services-auth:11.+'
+    compile 'com.google.android.gms:play-services-auth:11.+'
 }
