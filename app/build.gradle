@@ -5,9 +5,8 @@ android {
     buildToolsVersion "27.0.3"
     defaultConfig {
         minSdkVersion 15
-        targetSdkVersion 27
-        versionCode 7
-        versionName "2.0.4"
+        versionCode 8
+        versionName "2.0.5"
     }
     buildTypes {
         release {
@@ -21,8 +20,8 @@ dependencies {
     implementation 'com.scottyab:aescrypt:0.0.1'
 
     // Facebook SDK for Facebook login
-    api 'com.facebook.android:facebook-login:4.31.0'
+    api 'com.facebook.android:facebook-login:4.34.0'
 
     // Google Play Services for Google login
-    api 'com.google.android.gms:play-services-auth:11.8.0'
+    api 'com.google.android.gms:play-services-auth:15.0.1'
 }
