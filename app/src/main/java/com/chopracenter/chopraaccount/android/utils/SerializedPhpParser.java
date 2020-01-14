@@ -134,8 +134,7 @@ public class SerializedPhpParser
                     SerializedPhpParserException.MISSING_DELIMITER_STRING);
         }
         checkUnexpectedLength(delimiter + 1);
-        Integer refIndex = Integer.valueOf(this.input.substring(this.index,
-                delimiter)) - 1;
+        int refIndex = Integer.parseInt(this.input.substring(this.index, delimiter)) - 1;
         this.index = delimiter + 1;
         if ((refIndex + 1) > this.refArray.size())
         {
@@ -213,7 +212,7 @@ public class SerializedPhpParser
                     this.index, SerializedPhpParserException.MISSING_DELIMITER_STRING);
         }
         checkUnexpectedLength(delimiter + 2);
-        int arrayLen = Integer.valueOf(this.input.substring(this.index, delimiter));
+        int arrayLen = Integer.parseInt(this.input.substring(this.index, delimiter));
         this.index = delimiter + 2;
         return arrayLen;
     }
@@ -355,7 +354,7 @@ public class SerializedPhpParser
                 .compile(acceptedAttributeNameRegex);
     }
 
-    public static final Object NULL = new Object()
+    private static final Object NULL = new Object()
     {
         @Override
         public String toString()
@@ -369,9 +368,9 @@ public class SerializedPhpParser
      */
     public static class PhpObject
     {
-        public String name;
+        String name;
 
-        public Map<Object, Object> attributes = new HashMap<>();
+        Map<Object, Object> attributes = new HashMap<>();
 
         @Override
         public String toString()

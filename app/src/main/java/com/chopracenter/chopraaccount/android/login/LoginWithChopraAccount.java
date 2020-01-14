@@ -1,15 +1,13 @@
 package com.chopracenter.chopraaccount.android.login;
 
 import android.accounts.Account;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.support.annotation.NonNull;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentActivity;
 import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -17,6 +15,10 @@ import android.view.View;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+
+import androidx.annotation.NonNull;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentActivity;
 
 import com.chopracenter.chopraaccount.android.R;
 import com.chopracenter.chopraaccount.android.rest.APIManager;
@@ -54,6 +56,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+@SuppressWarnings("unused")
 public class LoginWithChopraAccount implements GoogleApiClient.OnConnectionFailedListener {
 
     private static final String TAG = "ChopraAccountSDKWebView";
@@ -347,7 +350,7 @@ public class LoginWithChopraAccount implements GoogleApiClient.OnConnectionFaile
 
     //PopUpWebView
     private void showPopup(final Context context, String urlString) {
-        View layout = LayoutInflater.from(context).inflate(R.layout.dialog_login, null);
+        @SuppressLint("InflateParams") View layout = LayoutInflater.from(context).inflate(R.layout.dialog_login, null);
 
         final Dialog rootView = new Dialog(context, android.R.style.Theme_NoTitleBar);
         rootView.setContentView(layout);
@@ -479,7 +482,7 @@ public class LoginWithChopraAccount implements GoogleApiClient.OnConnectionFaile
     }
 
     private class GetAboutTaskCommand implements ResponseListener {
-        public void start(String ssoToken) {
+        void start(String ssoToken) {
             try {
                 new ChopraTask(apiManager.getBaseAPiUrl() + "/auth",
                         ssoToken, apiKey, clientKey, APIManager.GET, this).execute();
@@ -511,7 +514,7 @@ public class LoginWithChopraAccount implements GoogleApiClient.OnConnectionFaile
     }
 
     private class LogoutTaskCommand implements ResponseListener {
-        public void start(String ssoToken) {
+        void start(String ssoToken) {
             try {
                 new ChopraTask(apiManager.getBaseAPiUrl() + "/auth",
                         ssoToken, apiKey, clientKey, APIManager.DELETE, this).execute();
